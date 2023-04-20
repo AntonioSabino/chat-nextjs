@@ -3,7 +3,7 @@ import { ChatServiceClient as GrpcChatServiceClient } from './rpc/pb/ChatService
 import { Metadata } from '@grpc/grpc-js'
 
 interface ChatStreamData {
-  chat_id?: string
+  chat_id: string | null
   user_id: string
   message: string
 }
@@ -18,21 +18,21 @@ export class ChatServiceClient {
 
     const stream = this.chatClient.chatStream(
       {
-        chatId: data.chat_id,
+        chatId: data.chat_id!,
         userId: data.user_id,
         userMessage: data.message
       },
       metadata
     )
-    stream.on('data', (data) => {
-      console.log('chatStream data', data)
-    })
-    stream.on('error', (error) => {
-      console.log('chatStream error', error)
-    })
-    stream.on('end', () => {
-      console.log('chatStream end')
-    })
+    // stream.on('data', (data) => {
+    //   console.log('chatStream data', data)
+    // })
+    // stream.on('error', (error) => {
+    //   console.log('chatStream error', error)
+    // })
+    // stream.on('end', () => {
+    //   console.log('chatStream end')
+    // })
 
     return stream
   }
