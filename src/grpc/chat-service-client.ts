@@ -1,5 +1,6 @@
 import { chatClient } from './client'
 import { ChatServiceClient as GrpcChatServiceClient } from './rpc/pb/ChatService'
+import { Metadata } from '@grpc/grpc-js'
 
 interface ChatStreamData {
   chat_id?: string
@@ -8,14 +9,21 @@ interface ChatStreamData {
 }
 
 export class ChatServiceClient {
+  private readonly authorization = '123456'
   constructor(private readonly chatClient: GrpcChatServiceClient) {}
 
   chatStream(data: ChatStreamData) {
-    const stream = this.chatClient.chatStream({
-      chatId: data.chat_id,
-      userId: data.user_id,
-      userMessage: data.message
-    })
+    const metadata = new Metadata()
+    metadata.set('authorization', this.authorization)
+
+    const stream = this.chatClient.chatStream(
+      {
+        chatId: data.chat_id,
+        userId: data.user_id,
+        userMessage: data.message
+      },
+      metadata
+    )
     stream.on('data', (data) => {
       console.log('chatStream data', data)
     })
@@ -25,6 +33,8 @@ export class ChatServiceClient {
     stream.on('end', () => {
       console.log('chatStream end')
     })
+
+    return stream
   }
 }
 
