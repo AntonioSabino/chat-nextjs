@@ -16,3 +16,24 @@ export async function GET(
 
   return NextResponse.json(messages)
 }
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { chatId: string } }
+) {
+  await prisma.chat.findUniqueOrThrow({
+    where: {
+      id: params.chatId
+    }
+  })
+
+  const body = await request.json()
+  const messageCreated = await prisma.message.create({
+    data: {
+      content: body.message,
+      chat_id: params.chatId
+    }
+  })
+
+  return NextResponse.json(messageCreated)
+}
