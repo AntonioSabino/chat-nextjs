@@ -5,6 +5,7 @@ import { Chat, Message } from '@prisma/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { FormEvent, useEffect, useState } from 'react'
 import useSWR from 'swr'
+import useSWRSubscription from 'swr/subscription'
 
 type ChatWithFirstMessage = Chat & {
   messages: [Message]
@@ -14,6 +15,7 @@ export default function Home() {
   const route = useRouter()
   const chatIdParam = useSearchParams().get('id')
   const [chatId, setChatId] = useState<string | null>(chatIdParam)
+  const [messageId, setMessageId] = useState<string | null>(null)
 
   const { data: chats, mutate: mutateChats } = useSWR<ChatWithFirstMessage[]>(
     'chats',
@@ -32,6 +34,38 @@ export default function Home() {
       revalidateOnFocus: false
     }
   )
+
+  const { data: messageLoading, error: errorMessageLoading } =
+    useSWRSubscription(
+      messageId ? `/api/messages/${messageId}/events` : null,
+      (path: string, { next }) => {
+        console.log('init event source')
+        const eventSource = new EventSource(path)
+        eventSource.onmessage = (event) => {
+          console.log('on message', event)
+          const newMessage = JSON.parse(event.data)
+          next(null, newMessage.content)
+        }
+        eventSource.onerror = (event) => {
+          console.log('on error', event)
+          eventSource.close()
+          // @ts-ignore
+          const err = event.data
+          next(err, null)
+        }
+        eventSource.addEventListener('end', (event) => {
+          console.log('on end', event)
+          eventSource.close()
+          const newMessage = JSON.parse(event.data)
+          mutateMessages((prev) => [...prev!, newMessage], false)
+          next(null, null)
+        })
+        return () => {
+          console.log('close event source')
+          eventSource.close()
+        }
+      }
+    )
 
   useEffect(() => {
     setChatId(chatIdParam)
@@ -69,12 +103,14 @@ export default function Home() {
       })
       mutateChats((prev) => [newChat, ...prev!], false)
       setChatId(newChat.id)
+      setMessageId(newChat.messages[0].id)
     } else {
       const newMessage: Message = await ClientHttp.post(
         `chats/${chatId}/messages`,
         { message }
       )
       mutateMessages((prev) => [...prev!, newMessage], false)
+      setMessageId(newMessage.id)
     }
 
     textarea.value = ''
@@ -101,6 +137,8 @@ export default function Home() {
           {messages!.map((message) => (
             <li key={message.id}>{message.content}</li>
           ))}
+          {messageLoading && <li>{messageLoading}</li>}
+          {errorMessageLoading && <li>{errorMessageLoading}</li>}
         </ul>
         <form onSubmit={handleSubmit} id="form">
           <textarea id="message" placeholder="Digire sua pergunta"></textarea>
