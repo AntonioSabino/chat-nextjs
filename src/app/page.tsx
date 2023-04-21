@@ -3,11 +3,14 @@
 import ClientHttp, { fetcher } from '@/http/http'
 import { Chat, Message } from '@prisma/client'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useLayoutEffect, useState } from 'react'
 import useSWR from 'swr'
 import useSWRSubscription from 'swr/subscription'
 import { PlusIcon } from './components/PlusIcon'
 import { MessageIcon } from './components/MessageIcon'
+import { ArrowRightIcon } from './components/ArrowRightIcon'
+import { ChatItemError } from './components/ChatItemError'
+import { ChatItem } from './components/ChatItem'
 
 type ChatWithFirstMessage = Chat & {
   messages: [Message]
@@ -88,8 +91,23 @@ export default function Home() {
         form.requestSubmit(submitButton)
         return
       }
+      if (textarea.scrollHeight >= 200) {
+        textarea.style.overflowY = 'scroll'
+      } else {
+        textarea.style.overflowY = 'hidden'
+        textarea.style.height = 'auto'
+        textarea.style.height = textarea.scrollHeight + 'px'
+      }
     })
   }, [])
+
+  useLayoutEffect(() => {
+    if (!messageLoading) {
+      return
+    }
+    const chatting = document.querySelector('#chatting') as HTMLUListElement
+    chatting.scrollTop = chatting.scrollHeight
+  }, [messageLoading])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -124,7 +142,11 @@ export default function Home() {
         <button
           className="flex p-3 gap-3 rounded hover:bg-gray-500/10 transition-colors duration-200 text-white cursor-pointer text-sm mb-1 border border-white/20"
           type="button"
-          onClick={() => route.push('/')}
+          onClick={() => {
+            route.push('/')
+            setChatId(null)
+            setMessageId(null)
+          }}
         >
           <PlusIcon className="w-5 h-5" />
           New chat
@@ -146,19 +168,48 @@ export default function Home() {
           ))}
         </ul>
       </aside>
-      <div className="flex-1">
-        Centro
-        <ul>
+      <div className="flex-1 flex-col relative">
+        <ul id="chatting" className="h-screen overflow-y-auto bg-gray-800">
           {messages!.map((message) => (
-            <li key={message.id}>{message.content}</li>
+            <ChatItem
+              key={message.id}
+              content={message.content}
+              is_from_bot={message.is_from_bot}
+            />
           ))}
-          {messageLoading && <li>{messageLoading}</li>}
-          {errorMessageLoading && <li>{errorMessageLoading}</li>}
+          {messageLoading && (
+            <ChatItem
+              content={messageLoading}
+              is_from_bot={true}
+              loading={true}
+            />
+          )}
+          {errorMessageLoading && (
+            <ChatItemError>{errorMessageLoading}</ChatItemError>
+          )}
         </ul>
-        <form onSubmit={handleSubmit} id="form">
-          <textarea id="message" placeholder="Digire sua pergunta"></textarea>
-          <button type="submit">Enviar</button>
-        </form>
+        <div className="absolute bottom-0 w-full !bg-transparent bg-gradient-to-b from-gray-800 to-gray-950">
+          <div className="mb-6 mx-auto max-w-[90%]">
+            <form id="form" onSubmit={handleSubmit}>
+              <div className="flex flex-col py-3 pl-4 relative text-white bg-gray-700 rounded">
+                <textarea
+                  id="message"
+                  tabIndex={0}
+                  rows={1}
+                  placeholder="Digite sua pergunta"
+                  className="resize-none pr-14 bg-transparent pl-0 outline-none"
+                ></textarea>
+                <button
+                  type="submit"
+                  className="absolute top-1 text-gray-400 bottom-2.5 rounded hover:text-gray-400 hover:bg-gray-900 md:right-4"
+                  disabled={messageLoading}
+                >
+                  <ArrowRightIcon className="text-white-500 w-8" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   )
