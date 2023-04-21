@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { FormEvent, useEffect, useState } from 'react'
 import useSWR from 'swr'
 import useSWRSubscription from 'swr/subscription'
+import { PlusIcon } from './components/PlusIcon'
+import { MessageIcon } from './components/MessageIcon'
 
 type ChatWithFirstMessage = Chat & {
   messages: [Message]
@@ -117,21 +119,34 @@ export default function Home() {
   }
 
   return (
-    <div className="flex gap-5">
-      <aside className="flex flex-col">
-        Barra lateral
-        <button type="button" onClick={() => route.push('/')}>
+    <div className="overflow-hidden w-full h-full relative flex">
+      <aside className="bg-gray-900 w-72 flex h-screen flex-col p-2">
+        <button
+          className="flex p-3 gap-3 rounded hover:bg-gray-500/10 transition-colors duration-200 text-white cursor-pointer text-sm mb-1 border border-white/20"
+          type="button"
+          onClick={() => route.push('/')}
+        >
+          <PlusIcon className="w-5 h-5" />
           New chat
         </button>
-        <ul>
+        <ul className="overflow-y-auto">
           {chats!.map((chat) => (
-            <li key={chat.id} onClick={() => route.push(`/?id=${chat.id}`)}>
-              {chat.messages[0]?.content}
-            </li>
+            <div className="pb-2 text-gray-100 text-sm mr-2" key={chat.id}>
+              <button
+                className="flex p-3 gap-3 rounded hover:bg-[#3f4679] cursor-pointer hover:pr-4 group w-full"
+                onClick={() => route.push(`/?id=${chat.id}`)}
+              >
+                <MessageIcon className="h-5 w-5" />
+                <div className="max-h-5 overflow-hidden break-all relative w-full text-left">
+                  {chat.messages[0].content}
+                  <div className="absolute inset-y-0 right-0 w-8 z-10 bg-gradient-to-l from-gray-900 group-hover:from-[#3f4679]"></div>
+                </div>
+              </button>
+            </div>
           ))}
         </ul>
       </aside>
-      <div>
+      <div className="flex-1">
         Centro
         <ul>
           {messages!.map((message) => (
