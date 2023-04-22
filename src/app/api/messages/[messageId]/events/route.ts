@@ -1,3 +1,4 @@
+import { withAuth } from '@/app/api/helpers'
 import { prisma } from '@/app/prisma/prisma'
 import { ChatServiceClientFactory } from '@/grpc/chat-service-client'
 import { NextRequest } from 'next/server'
@@ -7,101 +8,104 @@ interface MessageReceived {
   chatId: string
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { messageId: string } }
-) {
-  const message = await prisma.message.findUniqueOrThrow({
-    where: {
-      id: params.messageId
-    },
-    include: {
-      chat: true
-    }
-  })
+export const GET = withAuth(
+  async (
+    _request: NextRequest,
+    _token,
+    { params }: { params: { messageId: string } }
+  ) => {
+    const message = await prisma.message.findUniqueOrThrow({
+      where: {
+        id: params.messageId
+      },
+      include: {
+        chat: true
+      }
+    })
 
-  const transformStream = new TransformStream()
-  const writer = transformStream.writable.getWriter()
+    const transformStream = new TransformStream()
+    const writer = transformStream.writable.getWriter()
 
-  if (message.has_answered) {
-    setTimeout(async () => {
-      writeStream(writer, 'error', 'Message already answered')
-      await writer.close()
-    }, 100)
+    if (message.has_answered) {
+      setTimeout(async () => {
+        writeStream(writer, 'error', 'Message already answered')
+        await writer.close()
+      }, 100)
 
-    return response(transformStream, 403)
-  }
-
-  if (message.is_from_bot) {
-    setTimeout(async () => {
-      writeStream(writer, 'error', 'Message from bot')
-      await writer.close()
-    }, 100)
-    return response(transformStream, 403)
-  }
-
-  const chatService = ChatServiceClientFactory.create()
-  const stream = chatService.chatStream({
-    message: message.content,
-    user_id: '1',
-    chat_id: message.chat.remote_chat_id
-  })
-  let messageReceived: MessageReceived | null = null
-  stream.on('data', (data) => {
-    console.log(`data: ${JSON.stringify(data)}`)
-    messageReceived = data
-    writeStream(writer, 'message', data)
-  })
-
-  stream.on('error', async (err) => {
-    console.error(err)
-    writeStream(writer, 'error', err)
-    await writer.close()
-  })
-
-  stream.on('end', async () => {
-    console.log('end')
-    if (!messageReceived) {
-      writeStream(writer, 'error', 'No message received')
-      await writer.close()
-      return
+      return response(transformStream, 403)
     }
 
-    const [newMessage] = await prisma.$transaction([
-      prisma.message.create({
-        data: {
-          content: messageReceived.content,
-          chat_id: message.chat_id,
-          has_answered: true,
-          is_from_bot: true
-        }
-      }),
+    if (message.is_from_bot) {
+      setTimeout(async () => {
+        writeStream(writer, 'error', 'Message from bot')
+        await writer.close()
+      }, 100)
+      return response(transformStream, 403)
+    }
 
-      prisma.chat.update({
-        where: {
-          id: message.chat_id
-        },
-        data: {
-          remote_chat_id: messageReceived.chatId
-        }
-      }),
+    const chatService = ChatServiceClientFactory.create()
+    const stream = chatService.chatStream({
+      message: message.content,
+      user_id: '1',
+      chat_id: message.chat.remote_chat_id
+    })
+    let messageReceived: MessageReceived | null = null
+    stream.on('data', (data) => {
+      console.log(`data: ${JSON.stringify(data)}`)
+      messageReceived = data
+      writeStream(writer, 'message', data)
+    })
 
-      prisma.message.update({
-        where: {
-          id: message.id
-        },
-        data: {
-          has_answered: true
-        }
-      })
-    ])
+    stream.on('error', async (err) => {
+      console.error(err)
+      writeStream(writer, 'error', err)
+      await writer.close()
+    })
 
-    writeStream(writer, 'end', newMessage)
-    await writer.close()
-  })
+    stream.on('end', async () => {
+      console.log('end')
+      if (!messageReceived) {
+        writeStream(writer, 'error', 'No message received')
+        await writer.close()
+        return
+      }
 
-  return response(transformStream)
-}
+      const [newMessage] = await prisma.$transaction([
+        prisma.message.create({
+          data: {
+            content: messageReceived.content,
+            chat_id: message.chat_id,
+            has_answered: true,
+            is_from_bot: true
+          }
+        }),
+
+        prisma.chat.update({
+          where: {
+            id: message.chat_id
+          },
+          data: {
+            remote_chat_id: messageReceived.chatId
+          }
+        }),
+
+        prisma.message.update({
+          where: {
+            id: message.id
+          },
+          data: {
+            has_answered: true
+          }
+        })
+      ])
+
+      writeStream(writer, 'end', newMessage)
+      await writer.close()
+    })
+
+    return response(transformStream)
+  }
+)
 
 function response(responseStream: TransformStream, status: number = 200) {
   return new Response(responseStream.readable, {
