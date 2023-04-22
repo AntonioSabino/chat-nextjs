@@ -5,9 +5,19 @@ import { NextRequest, NextResponse } from 'next/server'
 export const GET = withAuth(
   async (
     _request: NextRequest,
-    _token,
+    token,
     { params }: { params: { chatId: string } }
   ) => {
+    const chat = await prisma.chat.findUniqueOrThrow({
+      where: {
+        id: params.chatId
+      }
+    })
+
+    if (chat.user_id !== token.sub) {
+      return NextResponse.json({ error: 'Not Found' }, { status: 404 })
+    }
+
     const messages = await prisma.message.findMany({
       where: {
         chat_id: params.chatId
@@ -24,20 +34,24 @@ export const GET = withAuth(
 export const POST = withAuth(
   async (
     request: NextRequest,
-    _token,
+    token,
     { params }: { params: { chatId: string } }
   ) => {
-    await prisma.chat.findUniqueOrThrow({
+    const chat = await prisma.chat.findUniqueOrThrow({
       where: {
         id: params.chatId
       }
     })
 
+    if (chat.user_id !== token.sub) {
+      return NextResponse.json({ error: 'Not Found' }, { status: 404 })
+    }
+
     const body = await request.json()
     const messageCreated = await prisma.message.create({
       data: {
         content: body.message,
-        chat_id: params.chatId
+        chat_id: chat.id
       }
     })
 
