@@ -1,8 +1,10 @@
 GET http://localhost:3000/api/hello
 
+@token = eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..BkJ-jF-IUBsmMk4T.FLWzVXbXUkq5r4wn64egAN4aqEWtgl5PGZfBFmi4x0Gy4rwrWUj1laBNwUCyBrvbxzoiIpUEPqMGvsaubf-Vx2DzvPKAJcEDZ4FvHeKlMNrYUnHmqCCMGpnqNJMJY4sGb2HF1iv6SPUGOv-0YVF3wma2pLai3vxohsjj-TduOPKwzxBVXhT_QjamgWE.PLK7deJN5eZwETMitH_Xvw
 ###
 POST http://localhost:3000/api/chats
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "message": "Hello World-1"
@@ -10,13 +12,28 @@ Content-Type: application/json
 
 ###
 GET http://localhost:3000/api/chats
+Authorization: Bearer {{token}}
 
 ###
 @chatId = bb942b0d-7e3e-4348-9dd7-b9fbcb030ced
 
 GET http://localhost:3000/api/chats/{{chatId}}/messages
+Authorization: Bearer {{token}}
 
 ###
 @messageId = c9673b7f-2ab8-4b1b-a672-fae2fa5dd5e4
 GET http://localhost:3000/api/chats/{{messageId}}/messages
 Content-Type: application/json
+Authorization: Bearer {{token}}
+
+###
+POST http://localhost:3000/api/generate-token
+Content-Type: application/json
+
+{
+
+}
+
+###
+GET http://localhost:3000/api/event-stream
+
