@@ -11,6 +11,8 @@ import { MessageIcon } from './components/MessageIcon'
 import { ArrowRightIcon } from './components/ArrowRightIcon'
 import { ChatItemError } from './components/ChatItemError'
 import { ChatItem } from './components/ChatItem'
+import { LogoutIcon } from './components/LogoutIcon'
+import { signOut } from 'next-auth/react'
 
 type ChatWithFirstMessage = Chat & {
   messages: [Message]
@@ -136,6 +138,14 @@ export default function Home() {
     textarea.value = ''
   }
 
+  async function logout() {
+    await signOut({ redirect: false })
+    const { url: logoutUrl } = await ClientHttp.get(
+      `logout-url?${new URLSearchParams({ redirect: window.location.origin })}`
+    )
+    window.location.href = logoutUrl
+  }
+
   return (
     <div className="overflow-hidden w-full h-full relative flex">
       <aside className="bg-gray-900 w-72 flex h-screen flex-col p-2">
@@ -151,7 +161,7 @@ export default function Home() {
           <PlusIcon className="w-5 h-5" />
           New chat
         </button>
-        <ul className="overflow-y-auto">
+        <div className="flex-grow overflow-y-auto -mr-2 overflow-hidden">
           {chats!.map((chat) => (
             <div className="pb-2 text-gray-100 text-sm mr-2" key={chat.id}>
               <button
@@ -166,7 +176,14 @@ export default function Home() {
               </button>
             </div>
           ))}
-        </ul>
+        </div>
+        <button
+          className="flex p-3 mt-1 gap-3 rounded hover:bg-gray-500/10 text-sm text-white"
+          onClick={() => logout()}
+        >
+          <LogoutIcon className="h-5 w-5" />
+          Log out
+        </button>
       </aside>
       <div className="flex-1 flex-col relative">
         <ul id="chatting" className="h-screen overflow-y-auto bg-gray-800">
